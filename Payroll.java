@@ -15,7 +15,7 @@ public class Payroll{
   String[] csvBookingList = {"C:/Users/scott/Desktop/Payroll/thisweek/belS.CSV", "C:/Users/scott/Desktop/Payroll/thisweek/belN.CSV"};
   String[] csvMemberList = {"C:/Users/scott/Desktop/Payroll/thisweek/memS.CSV", "C:/Users/scott/Desktop/Payroll/thisweek/memN.CSV"};
   String[] csvTimeClockList = {"C:/Users/scott/Desktop/Payroll/thisweek/timeS.CSV", "C:/Users/scott/Desktop/Payroll/thisweek/timeN.CSV"};
-  String csvFillingFile = "C:/Users/scott/Desktop/Payroll/thisweek/CPNInput.CSV";
+  String csvFillingFile = "C:/Users/scott/Desktop/Payroll/thisweek/inp.CSV";
   String csvBookingFile;
   String csvMemberFile;
   String csvTimeClockFile;
@@ -48,7 +48,7 @@ public class Payroll{
 
   String[][] basePayTable = new String[50][3];
   String[][] groupClassPayTable = new String[50][15];
-  String[][] privateClassPayTable = new String[50][5];
+  String[][] privateClassPayTable = new String[50][8];
   String[][] introClassPayTable = new String[50][15];
 
   String location;
@@ -202,9 +202,9 @@ public class Payroll{
 
           secondaryCounter = 0;
           //Fills private/semi-private class array
-          privateClassPayTable[count][4] = line[0];
+          privateClassPayTable[count][7] = line[0];
           privateClassPayTable[count][0] = line[1];
-          while(secondaryCounter < 3){
+          while(secondaryCounter < 6){
             privateClassPayTable[count][secondaryCounter+1] = line[secondaryCounter+18];
             secondaryCounter++;
           }
@@ -234,17 +234,20 @@ public class Payroll{
 
       //Finds beginning line of member file         ex. Member List: Club Pilates South Naperville (5923) - 394 Active on 7/23/2018
       boolean beginning = false;
+      int count = 0;
       while(!beginning){
         memberLine = memberFile.readLine();
-        if(memberLine.contains("Member List") || memberLine.contains("Active on")){
+        if(memberLine.contains("Active Members") || memberLine.contains("Active on") || count == 3){
+          System.out.println(memberLine);
           beginning = true;
         }
+        count += 1;
       }
-      storeNumber = memberLine.substring(memberLine.indexOf("(")+1, memberLine.indexOf(")"));
+      //storeNumber = memberLine.substring(memberLine.indexOf("(")+1, memberLine.indexOf(")"));
 
       //Finds the line with indexes on it then finds the first name and last name index
       boolean indexes = false;
-      while(!indexes){
+      while(!indexes && memberLine != null){
         memberLine = memberFile.readLine();
         if(memberLine.contains("First Name") || memberLine.contains("Last Name")){
           indexes = true;
@@ -285,7 +288,7 @@ public class Payroll{
       if(csvTimeClockList.length > 0){
         timeClockLine = timeClockFile.readLine();
         timeClockLine = timeClockFile.readLine();
-        while((timeClockLine = timeClockFile.readLine()) != null){
+        while((timeClockLine = timeClockFile.readLine()).contains(",,,,")){
           timeClockLine = timeClockLine.replaceAll("\"", "");
           String[] line = timeClockLine.split(cvsSplitBy);
           timePayTableInput[counter][0] = line[0];
@@ -309,11 +312,30 @@ public class Payroll{
 
   public void findBookingIndexes(){
     try{
-      int count = 1;
-      while(count < 5){
+      // int count = 1;
+      // while(count < 5){
+      //   bookingLine = bookingFile.readLine();
+      //   if(count == 2){
+      //     String loc = bookingLine.substring(0, bookingLine.indexOf("["));
+      //     currentLocation = loc;
+      //     if(location == null){
+      //       location = loc;
+      //     }else{
+      //       location += ("/ " + loc);
+      //     }
+      //   }
+      //   if(count == 4){
+      //     String date = bookingLine.substring(0, bookingLine.lastIndexOf("/") + 5);
+      //     dateRange = date;
+      //   }
+      //   count += 1;
+      // }
+      boolean foundBeginning = false;
+      while(!foundBeginning){
         bookingLine = bookingFile.readLine();
-        if(count == 2){
-          String loc = bookingLine.substring(0, bookingLine.indexOf("["));
+
+        if(bookingLine.contains("Booking Events Log")){
+          String loc = bookingLine.substring(bookingLine.indexOf("-")+2, bookingLine.indexOf("(")-1);
           currentLocation = loc;
           if(location == null){
             location = loc;
@@ -321,15 +343,17 @@ public class Payroll{
             location += ("/ " + loc);
           }
         }
-        if(count == 4){
-          String date = bookingLine.substring(0, bookingLine.lastIndexOf("/") + 5);
-          dateRange = date;
+
+        if(bookingLine.contains("/")){
+          dateRange = bookingLine;
         }
-        count += 1;
+
+        if(bookingLine.contains("Booking Event,Log Date,")){
+          foundBeginning = true;
+        }
       }
 
 
-      bookingLine = bookingFile.readLine();
       String[] column = bookingLine.split(cvsSplitBy);
 
       //Sets booking indexes
@@ -352,13 +376,13 @@ public class Payroll{
         if(column[i].contains("Current Status")){
           bookingStatusIndex = i;
         }
-        if(column[i].contains("Customer First Name")){
+        if(column[i].contains("First Name")){
           customerFirstIndex = i;
         }
-        if(column[i].contains("Customer Last Name")){
+        if(column[i].contains("Last Name")){
           customerLastIndex = i;
         }
-        if(column[i].contains("BookingLocation")){
+        if(column[i].contains("Booking Location")){
           bookingLocation = i;
         }
       }
@@ -370,15 +394,15 @@ public class Payroll{
   public void fillBookingEventArray(){
     try{
       //Adds all booking events to array
-      while((bookingLine = bookingFile.readLine()) != null){
+      while((bookingLine = bookingFile.readLine()) != null && !bookingLine.contains(",,,,,,,,,,")){
         String[] row = bookingLine.split(cvsSplitBy);
         if(row != null){
           if(row[bookingEventIndex].contains("Booking Completed") ||
              (row[bookingEventIndex].contains("Past But Not Logged") && pastButNotLoggedPay) ||
              (row[bookingEventIndex].contains("No-Show") && noShowPay) ||
-             ((row[bookingEventIndex].contains("Booking Canceled") && row[bookingStatusIndex].contains("Cancelled Outside Policy Rules - Session Lost")) && cancelledOutsidePolicyPay) ||
-             ((row[bookingEventIndex].contains("Booking Canceled") && row[bookingStatusIndex].contains("Cancelled Within Policy Rules")) && cancelledWithinRulesPay) ||
-             ((row[bookingEventIndex].contains("Booking Canceled") && row[bookingStatusIndex].contains("Cancelled By Admin")) && cancelledByAdminPay)
+             ((row[bookingEventIndex].contains("Booking Cancelled") && row[bookingStatusIndex].contains("Cancelled Outside Policy Rules - Session Lost")) && cancelledOutsidePolicyPay) ||
+             ((row[bookingEventIndex].contains("Booking Cancelled") && row[bookingStatusIndex].contains("Cancelled Within Policy Rules")) && cancelledWithinRulesPay) ||
+             ((row[bookingEventIndex].contains("Booking Cancelled") && row[bookingStatusIndex].contains("Cancelled By Admin")) && cancelledByAdminPay)
              ){
 
             bEvents[bECounter][0] = row[bookingDetailIndex];
@@ -474,8 +498,6 @@ public class Payroll{
          bEC++;
        }
      }
-     System.out.println("Unka;;;;;;;;;;;;;;;" + bEC);
-     System.out.println("Scott::::::::::::" + classesCounter);
    }
 
   public void getPay(){
@@ -500,7 +522,7 @@ public class Payroll{
           }
         }else if(classes[x][0].contains("Private")){
           for(int q = 0; q < privateClassPayTable.length; q++){
-            if(classes[x][3].equals(privateClassPayTable[q][0]) && (classes[x][6].equals(privateClassPayTable[q][4]) || groupClassPayTable[q][4].equals("ALL"))){
+            if(classes[x][3].equals(privateClassPayTable[q][0]) && (classes[x][6].equals(privateClassPayTable[q][7]) || groupClassPayTable[q][4].equals("ALL"))){
               finalTable[cPCounter][0] = classes[x][0];
               finalTable[cPCounter][1] = classes[x][1];
               finalTable[cPCounter][2] = classes[x][2];
@@ -548,6 +570,7 @@ public class Payroll{
       }
     }
   }
+
 
   public void findInstructors(){
     for(int i = 0; i < finalTable.length; i++){
@@ -1261,8 +1284,8 @@ public class Payroll{
     int earliestDateIndex = 0;
     while(!finished){
       while(test < copyFinalTable.length){
-        String[] smallest = copyFinalTable[earliestDateIndex][1].split("-");
-        String[] newest = copyFinalTable[test][1].split("-");
+        String[] smallest = copyFinalTable[earliestDateIndex][1].split("/");
+        String[] newest = copyFinalTable[test][1].split("/");
         String smallestAMPM = copyFinalTable[earliestDateIndex][2].substring(copyFinalTable[earliestDateIndex][2].indexOf(" ")+1);
         String newestAMPM = copyFinalTable[test][2].substring(copyFinalTable[test][2].indexOf(" ")+1);
         String smallestTime = copyFinalTable[earliestDateIndex][2].substring(0,copyFinalTable[earliestDateIndex][2].indexOf(":"));
@@ -1460,12 +1483,14 @@ public class Payroll{
   }
 
   public void test4(){
-    for(int i = 0; i < finalTable.length; i++){
-      for(int j = 0; j < finalTable[0].length; j++){
-        System.out.print(finalTable[i][j] + "   ");
+    int counter= 0;
+    for(int i = 0; i < bEvents.length; i++){
+      if(bEvents[i][0] != null){
+        System.out.println(bEvents[i][0] + "-" + bEvents[i][1] + "-" + bEvents[i][2] + "-" + bEvents[i][3] + "-" + bEvents[i][4] + "-" + bEvents[i][5]);
+        counter += 1;
       }
-      System.out.println();
     }
+    System.out.println("--------------------Booking Events:" + counter);
   }
 
 
@@ -1517,7 +1542,7 @@ public class Payroll{
      //p.addNonInstructor();
 
      p.findTotalsLastColumn();
-     p.test4();
+     //p.test4();
      p.organizeFinal();
      //p.test();
 
